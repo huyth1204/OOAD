@@ -1,0 +1,3 @@
+# CalendarApp data - groupmeetings.txt
+gm001|Hop nhom PTTKHTDT|90|Phong B102|u002,u003
+gm002|Seminar Ky thuat phan mem|120|Hoi truong A|u004
