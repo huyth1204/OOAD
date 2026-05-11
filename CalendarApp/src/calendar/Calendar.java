@@ -77,6 +77,29 @@ public class Calendar {
         return conflicts;
     }
 
+    // ── THÊM MỚI: checkLocationConflictAllUsers ──────────────────
+    // Kiểm tra trùng phòng giữa TẤT CẢ users
+    public List<Appointment> checkLocationConflictAllUsers(String location, LocalDateTime start, LocalDateTime end) {
+        List<Appointment> conflicts = new ArrayList<>();
+        if (location == null || location.isBlank()) return conflicts;
+        
+        if (persistenceManager == null) {
+            // Fallback: chỉ check user hiện tại
+            return checkLocationConflict(location, start, end);
+        }
+        
+        List<Appointment> allUsersAppointments = persistenceManager.loadAllUsersAppointments();
+        for (Appointment a : allUsersAppointments) {
+            boolean sameLocation = location.trim().equalsIgnoreCase(
+                a.getLocation() != null ? a.getLocation().trim() : "");
+            boolean timeOverlap = start.isBefore(a.getEndTime()) && end.isAfter(a.getStartTime());
+            if (sameLocation && timeOverlap) {
+                conflicts.add(a);
+            }
+        }
+        return conflicts;
+    }
+
     // ── MSG 8: checkGroupMeetingMatch ─────────────────────────────
     // Kiểm tra xem appointment có khớp với group meeting nào không
     // Match điều kiện: tên giống nhau + duration gần giống + thời gian trùng khớp

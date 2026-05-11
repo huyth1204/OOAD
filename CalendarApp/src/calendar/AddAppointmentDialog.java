@@ -10,6 +10,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -260,38 +261,105 @@ public class AddAppointmentDialog extends JDialog {
             name, location, start, end, duration, reminder, isGroup
         );
 
-        // MSG 6: submitAppointment(appt) - Entry point theo diagram
-        // (Trong implementation, ta gọi từng method riêng để rõ ràng)
+        // BUOC 1: Kiem tra trung phong (cung dia diem + cung thoi gian) - KIEM TRA TAT CA USERS
+        if (location != null && !location.isBlank()) {
+            List<Appointment> locationConflicts = calendar.checkLocationConflictAllUsers(location, start, end);
+            if (!locationConflicts.isEmpty()) {
+                // Co trung phong → Hoi user: Tham gia cuoc hen nay HOAC Chon phong khac
+                StringBuilder sb = new StringBuilder("<html><b>Trung phong!</b><br><br>");
+                sb.append("Phong <b>").append(location).append("</b> da co cuoc hen:<br>");
+                for (Appointment c : locationConflicts) {
+                    sb.append("- <b>").append(c.getName()).append("</b>")
+                      .append(" (").append(c.formatStart()).append(" - ").append(c.formatEnd()).append(")<br>");
+                }
+                sb.append("<br>Ban muon lam gi?</html>");
 
-        // MSG 7: checkTimeConflict(start, end)
+                int choice = JOptionPane.showOptionDialog(this, sb.toString(),
+                    "Trung phong",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null,
+                    new String[]{"✅ Tham gia cuoc hen nay", "🔄 Chon phong khac"},
+                    "🔄 Chon phong khac");
+
+                if (choice == 0) {
+                    // User chon "Tham gia cuoc hen nay" → Tao appointment moi cho user nay
+                    Appointment existingAppt = locationConflicts.get(0);
+                    
+                    // Tao appointment moi voi cung thong tin nhung ID khac
+                    Appointment joinedAppt = new Appointment(
+                        "appt-" + System.currentTimeMillis(),
+                        existingAppt.getName(),
+                        existingAppt.getLocation(),
+                        existingAppt.getStartTime(),
+                        existingAppt.getEndTime(),
+                        existingAppt.getDuration(),
+                        reminder, // Su dung reminder ma user chon
+                        existingAppt.isGroup()
+                    );
+                    
+                    // Luu appointment vao calendar cua user hien tai
+                    calendar.recordAppointment(joinedAppt);
+                    
+                    // Luu reminder neu co
+                    if (reminder != null) {
+                        calendar.saveNewReminder(new Reminder(
+                            "rem-" + System.currentTimeMillis(),
+                            joinedAppt.getId(), reminder, "Nhac: " + joinedAppt.getName()
+                        ));
+                    }
+                    
+                    JOptionPane.showMessageDialog(this,
+                        "<html><b>Ban da tham gia cuoc hen!</b><br><br>" +
+                        "Ten: <b>" + existingAppt.getName() + "</b><br>" +
+                        "Thoi gian: " + existingAppt.formatStart() + " - " + existingAppt.formatEnd() + "<br>" +
+                        "Dia diem: " + existingAppt.getLocation() + "<br><br>" +
+                        "<i>Cuoc hen da duoc them vao lich cua ban.</i></html>",
+                        "Xac nhan", JOptionPane.INFORMATION_MESSAGE);
+                    confirmed = true;
+                    dispose();
+                    return;
+                } else {
+                    // User chon "Chon phong khac" → Focus vao o dia diem
+                    setStatus("Vui long chon phong khac.", COLOR_WARN);
+                    txtLocation.requestFocus();
+                    txtLocation.selectAll();
+                    btnSubmit.setEnabled(true);
+                    return;
+                }
+            }
+        }
+
+        // BUOC 2: Kiem tra trung gio (khac dia diem) - Chi canh bao, cho phep tiep tuc
         List<Appointment> timeConflicts = calendar.checkTimeConflict(start, end);
         if (!timeConflicts.isEmpty()) {
-            StringBuilder sb = new StringBuilder("<html><b>Xung dot thoi gian!</b><br><br>");
-            sb.append("Ban da co cuoc hen trung gio:<br>");
+            // Loc ra nhung cuoc hen trung gio NHUNG khac dia diem
+            List<Appointment> differentLocationConflicts = new ArrayList<>();
             for (Appointment c : timeConflicts) {
-                sb.append("- <b>").append(c.getName()).append("</b>")
-                  .append(" (").append(c.formatStart()).append(" - ").append(c.formatEnd()).append(")<br>");
+                boolean sameLocation = location != null && !location.isBlank() && 
+                                      location.trim().equalsIgnoreCase(c.getLocation() != null ? c.getLocation().trim() : "");
+                if (!sameLocation) {
+                    differentLocationConflicts.add(c);
+                }
             }
-            sb.append("<br>Ban muon lam gi?</html>");
 
-            // MSG 7b: showConflictWarning
-            int choice = JOptionPane.showOptionDialog(this, sb.toString(),
-                "Xung dot thoi gian cua ban",
-                JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null,
-                new String[]{"Chon gio khac", "Xoa cuoc hen cu va them moi", "Huy"},
-                "Chon gio khac");
+            if (!differentLocationConflicts.isEmpty()) {
+                StringBuilder sb = new StringBuilder("<html><b>Canh bao: Trung thoi gian!</b><br><br>");
+                sb.append("Ban da co cuoc hen trung gio (nhung khac dia diem):<br>");
+                for (Appointment c : differentLocationConflicts) {
+                    sb.append("- <b>").append(c.getName()).append("</b>")
+                      .append(" (").append(c.formatStart()).append(" - ").append(c.formatEnd()).append(")")
+                      .append(" tai <i>").append(c.getLocation() != null && !c.getLocation().isBlank() ? c.getLocation() : "khong co dia diem").append("</i><br>");
+                }
+                sb.append("<br>Ban co muon tiep tuc tao cuoc hen moi khong?</html>");
 
-            // MSG 7c: User chooses
-            if (choice == 0) {
-                setStatus("Vui long chon gio khac.", COLOR_WARN);
-                btnSubmit.setEnabled(true);
-                return;
-            } else if (choice == 1) {
-                for (Appointment c : timeConflicts) calendar.removeAppointment(c.getId());
-                setStatus("Da xoa " + timeConflicts.size() + " cuoc hen cu.", COLOR_SUCCESS);
-            } else {
-                btnSubmit.setEnabled(true);
-                return;
+                int choice = JOptionPane.showConfirmDialog(this, sb.toString(),
+                    "Canh bao trung thoi gian",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+                if (choice != JOptionPane.YES_OPTION) {
+                    setStatus("Da huy tao cuoc hen.", COLOR_WARN);
+                    btnSubmit.setEnabled(true);
+                    return;
+                }
             }
         }
 

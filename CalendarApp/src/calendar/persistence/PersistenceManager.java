@@ -115,6 +115,50 @@ public class PersistenceManager {
         return list;
     }
 
+    /**
+     * Load tất cả appointments từ TẤT CẢ users để kiểm tra xung đột phòng.
+     * Trả về danh sách tất cả appointments từ tất cả user folders.
+     */
+    public List<Appointment> loadAllUsersAppointments() {
+        List<Appointment> allAppointments = new ArrayList<>();
+        
+        try {
+            java.io.File dataRoot = new java.io.File(fileHandler.getDataDirectory()).getParentFile();
+            if (dataRoot == null || !dataRoot.exists()) {
+                log.warning("Không tìm thấy thư mục data root");
+                return allAppointments;
+            }
+            
+            java.io.File[] userDirs = dataRoot.listFiles(java.io.File::isDirectory);
+            if (userDirs == null) return allAppointments;
+            
+            for (java.io.File userDir : userDirs) {
+                java.io.File apptFile = new java.io.File(userDir, FILE_APPOINTMENTS);
+                if (!apptFile.exists()) continue;
+                
+                try {
+                    FileHandler userFileHandler = new FileHandler(userDir.getAbsolutePath());
+                    List<String> lines = userFileHandler.readLines(FILE_APPOINTMENTS);
+                    for (String line : lines) {
+                        try {
+                            allAppointments.add(DataParser.parseAppointment(line));
+                        } catch (ParseException e) {
+                            // Bỏ qua dòng lỗi
+                        }
+                    }
+                } catch (IOException e) {
+                    log.warning("Không đọc được appointments từ " + userDir.getName());
+                }
+            }
+            
+            log.info("Load được " + allAppointments.size() + " appointments từ tất cả users");
+        } catch (Exception e) {
+            log.severe("Lỗi khi load all users appointments: " + e.getMessage());
+        }
+        
+        return allAppointments;
+    }
+
     // ── Save ──────────────────────────────────────────────────────
 
     /**

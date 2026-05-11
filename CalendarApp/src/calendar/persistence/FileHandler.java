@@ -75,4 +75,8 @@ public class FileHandler {
     public boolean fileExists(String filename) {
         return Files.exists(dataDir.resolve(filename));
     }
+
+    public String getDataDirectory() {
+        return dataDir.toString();
+    }
 }
