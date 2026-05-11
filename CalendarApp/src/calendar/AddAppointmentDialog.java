@@ -1,14 +1,16 @@
 package calendar;
 
-import calendar.persistence.RoomConflictChecker;
-
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Date;
 import java.util.List;
 
 public class AddAppointmentDialog extends JDialog {
@@ -17,7 +19,8 @@ public class AddAppointmentDialog extends JDialog {
     private final String currentUserId;
     private boolean confirmed = false;
 
-    private JTextField txtName, txtLocation, txtStart, txtEnd;
+    private JTextField txtName, txtLocation;
+    private JSpinner spnStartDate, spnStartTime, spnEndDate, spnEndTime;
     private JComboBox<String> cmbReminder;
     private JLabel lblStatus;
     private JButton btnSubmit;
@@ -86,35 +89,73 @@ public class AddAppointmentDialog extends JDialog {
         addFormRow(p, gc, 0, "Ten cuoc hen *", txtName = makeField(380, "VD: Hop nhom PTTKHTDT"));
         addFormRow(p, gc, 1, "Dia diem / Phong", txtLocation = makeField(380, "VD: Phong B102 (de trong neu khong co)"));
 
-        LocalDateTime def = LocalDateTime.now().withSecond(0).withNano(0);
-        txtStart = makeField(180, def.format(DT_FMT));
-        txtEnd   = makeField(180, def.plusHours(1).format(DT_FMT));
-        JPanel timePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        timePanel.setBackground(Color.WHITE);
-        timePanel.add(txtStart);
-        JLabel dash = new JLabel("->");
-        dash.setFont(FONT_LBL);
-        timePanel.add(dash);
-        timePanel.add(txtEnd);
-        JLabel hint = new JLabel("(yyyy-MM-dd HH:mm)");
-        hint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        hint.setForeground(new Color(148, 163, 184));
-        timePanel.add(hint);
-        addFormRow(p, gc, 2, "Thoi gian * (Bat dau -> Ket thuc)", timePanel);
+        // Thoi gian bat dau
+        LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
+        JPanel startPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        startPanel.setBackground(Color.WHITE);
+        
+        spnStartDate = makeDateSpinner(now.toLocalDate());
+        spnStartTime = makeTimeSpinner(now.toLocalTime());
+        startPanel.add(new JLabel("Ngay:"));
+        startPanel.add(spnStartDate);
+        startPanel.add(new JLabel("Gio:"));
+        startPanel.add(spnStartTime);
+        
+        addFormRow(p, gc, 2, "Thoi gian bat dau *", startPanel);
+
+        // Thoi gian ket thuc
+        LocalDateTime endDefault = now.plusHours(1);
+        JPanel endPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        endPanel.setBackground(Color.WHITE);
+        
+        spnEndDate = makeDateSpinner(endDefault.toLocalDate());
+        spnEndTime = makeTimeSpinner(endDefault.toLocalTime());
+        endPanel.add(new JLabel("Ngay:"));
+        endPanel.add(spnEndDate);
+        endPanel.add(new JLabel("Gio:"));
+        endPanel.add(spnEndTime);
+        
+        addFormRow(p, gc, 3, "Thoi gian ket thuc *", endPanel);
 
         String[] reminderOpts = {"Khong nhac nho", "5 phut truoc", "15 phut truoc",
                                   "30 phut truoc", "1 gio truoc", "1 ngay truoc"};
         cmbReminder = new JComboBox<>(reminderOpts);
         cmbReminder.setFont(FONT_FLD);
         cmbReminder.setPreferredSize(new Dimension(220, 32));
-        addFormRow(p, gc, 3, "Nhac nho", cmbReminder);
+        addFormRow(p, gc, 4, "Nhac nho", cmbReminder);
 
         lblStatus = new JLabel(" ");
         lblStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        gc.gridx = 0; gc.gridy = 4; gc.gridwidth = 2;
+        gc.gridx = 0; gc.gridy = 5; gc.gridwidth = 2;
         gc.insets = new Insets(8, 0, 0, 0);
         p.add(lblStatus, gc);
         return p;
+    }
+
+    private JSpinner makeDateSpinner(LocalDate initialDate) {
+        Date date = Date.from(initialDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        SpinnerDateModel model = new SpinnerDateModel(date, null, null, java.util.Calendar.DAY_OF_MONTH);
+        JSpinner spinner = new JSpinner(model);
+        
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "dd/MM/yyyy");
+        spinner.setEditor(editor);
+        spinner.setFont(FONT_FLD);
+        spinner.setPreferredSize(new Dimension(120, 32));
+        
+        return spinner;
+    }
+
+    private JSpinner makeTimeSpinner(LocalTime initialTime) {
+        Date date = Date.from(initialTime.atDate(LocalDate.now()).atZone(ZoneId.systemDefault()).toInstant());
+        SpinnerDateModel model = new SpinnerDateModel(date, null, null, java.util.Calendar.MINUTE);
+        JSpinner spinner = new JSpinner(model);
+        
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "HH:mm");
+        spinner.setEditor(editor);
+        spinner.setFont(FONT_FLD);
+        spinner.setPreferredSize(new Dimension(80, 32));
+        
+        return spinner;
     }
 
     private void addFormRow(JPanel p, GridBagConstraints gc, int row, String label, Component field) {
@@ -183,11 +224,11 @@ public class AddAppointmentDialog extends JDialog {
         btnSubmit.setEnabled(false);
         setStatus("Dang xu ly...", COLOR_INFO);
 
+        // MSG 4: User enters data
         String name     = getFieldValue(txtName,     "VD: Hop nhom PTTKHTDT");
         String location = getFieldValue(txtLocation, "VD: Phong B102 (de trong neu khong co)");
-        String startStr = getFieldValue(txtStart,    null);
-        String endStr   = getFieldValue(txtEnd,      null);
 
+        // MSG 5a: validateInput() - UI validates before sending to Calendar
         if (name.isBlank()) {
             setStatus("[Loi] Ten cuoc hen khong duoc de trong!", COLOR_ERROR);
             btnSubmit.setEnabled(true);
@@ -196,10 +237,10 @@ public class AddAppointmentDialog extends JDialog {
 
         LocalDateTime start, end;
         try {
-            start = LocalDateTime.parse(startStr, DT_FMT);
-            end   = LocalDateTime.parse(endStr,   DT_FMT);
-        } catch (DateTimeParseException ex) {
-            setStatus("[Loi] Dinh dang thoi gian sai. Dung: yyyy-MM-dd HH:mm", COLOR_ERROR);
+            start = getDateTimeFromSpinners(spnStartDate, spnStartTime);
+            end   = getDateTimeFromSpinners(spnEndDate, spnEndTime);
+        } catch (Exception ex) {
+            setStatus("[Loi] Dinh dang thoi gian sai!", COLOR_ERROR);
             btnSubmit.setEnabled(true);
             return;
         }
@@ -212,23 +253,17 @@ public class AddAppointmentDialog extends JDialog {
         }
 
         Integer reminder = parseReminder();
-        // Loai cuoc hen (nhom/ca nhan) se duoc tu dong xac dinh
-        // dua tren logic nghiep vu (checkGroupMeetingMatch)
-        boolean isGroup = false; // Mac dinh la ca nhan
-
-        // ── VALIDATION THUỘC VỀ UI LAYER ────────────────────────────
-        // Theo mô tả: "The UI will prevent the user from entering..."
-        // Không cần gọi calendar.validateAndSubmit() nữa vì đã validate ở trên:
-        // - name.isBlank() đã check
-        // - duration <= 0 đã check
-        // UI chỉ tạo Appointment khi dữ liệu đã hợp lệ
+        boolean isGroup = false; // Mac dinh la ca nhan, se duoc set = true neu join group meeting
 
         Appointment appt = new Appointment(
             "appt-" + System.currentTimeMillis(),
             name, location, start, end, duration, reminder, isGroup
         );
 
-        // ── 1. TRUNG GIO (chi trong lich cua chinh user nay) ─────
+        // MSG 6: submitAppointment(appt) - Entry point theo diagram
+        // (Trong implementation, ta gọi từng method riêng để rõ ràng)
+
+        // MSG 7: checkTimeConflict(start, end)
         List<Appointment> timeConflicts = calendar.checkTimeConflict(start, end);
         if (!timeConflicts.isEmpty()) {
             StringBuilder sb = new StringBuilder("<html><b>Xung dot thoi gian!</b><br><br>");
@@ -239,12 +274,14 @@ public class AddAppointmentDialog extends JDialog {
             }
             sb.append("<br>Ban muon lam gi?</html>");
 
+            // MSG 7b: showConflictWarning
             int choice = JOptionPane.showOptionDialog(this, sb.toString(),
                 "Xung dot thoi gian cua ban",
                 JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null,
                 new String[]{"Chon gio khac", "Xoa cuoc hen cu va them moi", "Huy"},
                 "Chon gio khac");
 
+            // MSG 7c: User chooses
             if (choice == 0) {
                 setStatus("Vui long chon gio khac.", COLOR_WARN);
                 btnSubmit.setEnabled(true);
@@ -258,61 +295,18 @@ public class AddAppointmentDialog extends JDialog {
             }
         }
 
-        // ── 2. TRUNG PHONG VOI USER KHAC ─────────────────────────
-        if (location != null && !location.isBlank()) {
-            List<String[]> roomConflicts = RoomConflictChecker
-                .checkRoomConflictAcrossUsers(currentUserId, location, start, end);
-
-            if (!roomConflicts.isEmpty()) {
-                StringBuilder sb = new StringBuilder("<html><b>Phong da duoc dat!</b><br><br>");
-                sb.append("Phong <b>").append(location).append("</b> bi trung voi:<br>");
-                for (String[] c : roomConflicts) {
-                    sb.append("- User <b>").append(c[0]).append("</b>: ")
-                      .append(c[1]).append(" (").append(c[2]).append(")<br>");
-                }
-                sb.append("<br>Ban muon lam gi?</html>");
-
-                int choice = JOptionPane.showOptionDialog(this, sb.toString(),
-                    "Trung phong voi user khac",
-                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null,
-                    new String[]{"Chon phong khac", "Huy"},
-                    "Chon phong khac");
-
-                // Bat ky lua chon nao cung khong cho tiep tuc
-                setStatus("Phong da duoc dat. Vui long chon phong khac.", COLOR_WARN);
-                btnSubmit.setEnabled(true);
-                return;
-            }
-
-            // ── 3. TRUNG PHONG TRONG CHINH LICH CUA MINH ─────────
-            List<Appointment> myRoomConflicts = calendar.checkLocationConflict(location, start, end);
-            if (!myRoomConflicts.isEmpty()) {
-                StringBuilder sb = new StringBuilder("<html><b>Trung phong trong lich cua ban!</b><br><br>");
-                sb.append("Phong <b>").append(location).append("</b> ban da dat:<br>");
-                for (Appointment c : myRoomConflicts) {
-                    sb.append("- <b>").append(c.getName()).append("</b>")
-                      .append(" (").append(c.formatStart()).append(" - ").append(c.formatEnd()).append(")<br>");
-                }
-                sb.append("<br>Ban muon lam gi?</html>");
-
-                int choice = JOptionPane.showOptionDialog(this, sb.toString(),
-                    "Trung phong trong lich cua ban",
-                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null,
-                    new String[]{"Chon phong khac", "Huy"},
-                    "Chon phong khac");
-
-                setStatus("Phong da duoc dat. Vui long chon phong khac.", COLOR_WARN);
-                btnSubmit.setEnabled(true);
-                return;
-            }
-        }
-
-        // ── 4. KIEM TRA CUOC HOP NHOM ────────────────────────────
-        GroupMeeting gm = calendar.checkGroupMeetingMatch(name, duration);
+        // MSG 8: checkGroupMeetingMatch(name, dur)
+        GroupMeeting gm = calendar.checkGroupMeetingMatch(name, duration, start, end);
         if (gm != null) {
+            // MSG 9a: return groupMeeting (or null)
+            // Đã match chính xác thời gian + tên + duration
+            // → Có thể join vào group meeting này
+            
+            // MSG 9b: askJoinGroupMeeting - UI hỏi user (không phải Calendar hỏi)
             int choice = JOptionPane.showOptionDialog(this,
                 "<html><b>Phat hien cuoc hop nhom phu hop!</b><br><br>" +
                 "Ten: <b>" + gm.getName() + "</b><br>" +
+                "Thoi gian: " + gm.formatStart() + " - " + gm.formatEnd() + "<br>" +
                 "Thoi luong: " + gm.getDuration() + " phut<br>" +
                 "Dia diem: " + gm.getLocation() + "<br>" +
                 "Thanh vien: " + gm.getParticipants().size() + " nguoi<br><br>" +
@@ -321,14 +315,44 @@ public class AddAppointmentDialog extends JDialog {
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null,
                 new String[]{"Tham gia nhom", "Tao hen rieng"},
                 "Tham gia nhom");
+            // MSG 9c: user confirms
             if (choice == 0) {
+                // MSG 9d: addParticipant(user, meeting)
                 calendar.addParticipant(currentUserId, gm);
                 appt.setGroup(true);
             }
+        } else {
+            // KHÔNG match group meeting
+            // → Kiểm tra xem có OVERLAP với group meeting nào không
+            List<GroupMeeting> allGroupMeetings = calendar.getGroupMeetings();
+            for (GroupMeeting meeting : allGroupMeetings) {
+                // Check overlap: thời gian trùng NHƯNG không match chính xác
+                boolean timeOverlap = start.isBefore(meeting.getEndTime()) && end.isAfter(meeting.getStartTime());
+                boolean sameLocation = location != null && !location.isBlank() && 
+                                      location.trim().equalsIgnoreCase(meeting.getLocation() != null ? meeting.getLocation().trim() : "");
+                
+                if (timeOverlap && sameLocation) {
+                    // Overlap với group meeting → Conflict!
+                    JOptionPane.showMessageDialog(this,
+                        "<html><b>Xung dot voi cuoc hop nhom!</b><br><br>" +
+                        "Phong <b>" + location + "</b> da co cuoc hop nhom:<br>" +
+                        "- <b>" + meeting.getName() + "</b><br>" +
+                        "- Thoi gian: " + meeting.formatStart() + " - " + meeting.formatEnd() + "<br>" +
+                        "- Thanh vien: " + meeting.getParticipants().size() + " nguoi<br><br>" +
+                        "Vui long chon thoi gian hoac phong khac.</html>",
+                        "Trung phong voi cuoc hop nhom",
+                        JOptionPane.WARNING_MESSAGE);
+                    setStatus("Trung phong voi cuoc hop nhom.", COLOR_WARN);
+                    btnSubmit.setEnabled(true);
+                    return;
+                }
+            }
         }
 
-        // ── 5. LUU ───────────────────────────────────────────────
+        // MSG 10: recordAppointment(appt)
         calendar.recordAppointment(appt);
+        
+        // MSG 12: saveNewReminder(reminder)
         if (reminder != null) {
             calendar.saveNewReminder(new Reminder(
                 "rem-" + System.currentTimeMillis(),
@@ -336,6 +360,7 @@ public class AddAppointmentDialog extends JDialog {
             ));
         }
 
+        // MSG 14: showConfirmation(appt)
         confirmed = true;
         JOptionPane.showMessageDialog(this,
             "<html><b>Cuoc hen da duoc luu thanh cong!</b><br><br>" +
@@ -353,6 +378,16 @@ public class AddAppointmentDialog extends JDialog {
         String val = f.getText().trim();
         if (placeholder != null && val.equals(placeholder)) return "";
         return val;
+    }
+
+    private LocalDateTime getDateTimeFromSpinners(JSpinner dateSpinner, JSpinner timeSpinner) {
+        Date dateValue = (Date) dateSpinner.getValue();
+        Date timeValue = (Date) timeSpinner.getValue();
+        
+        LocalDate date = dateValue.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalTime time = timeValue.toInstant().atZone(ZoneId.systemDefault()).toLocalTime();
+        
+        return LocalDateTime.of(date, time);
     }
 
     private Integer parseReminder() {

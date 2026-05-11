@@ -169,9 +169,9 @@ public class CalendarUI extends JFrame {
         return val;
     }
 
-    // Table - them cot "User"
+    // Table - bỏ cột "Loại"
     private JScrollPane buildTablePanel() {
-        String[] cols = {"#", "User", "Loai", "Ten cuoc hen", "Dia diem", "Bat dau", "Ket thuc", "Thoi luong", "Nhac nho"};
+        String[] cols = {"#", "User", "Ten cuoc hen", "Dia diem", "Bat dau", "Ket thuc", "Thoi luong", "Nhac nho"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
@@ -192,7 +192,7 @@ public class CalendarUI extends JFrame {
         header.setForeground(new Color(71,85,105));
         header.setPreferredSize(new Dimension(0, 36));
 
-        int[] widths = {35, 70, 70, 200, 120, 120, 120, 90, 100};
+        int[] widths = {35, 70, 220, 120, 120, 120, 90, 100};
         for (int i = 0; i < widths.length; i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 
@@ -208,24 +208,6 @@ public class CalendarUI extends JFrame {
                     lbl.setFont(FONT_BOLD);
                 } else {
                     lbl.setForeground(COLOR_OTHER);
-                    lbl.setFont(FONT_LABEL);
-                }
-                return lbl;
-            }
-        });
-
-        // Renderer cot Loai
-        table.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object val,
-                    boolean sel, boolean focus, int row, int col) {
-                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, val, sel, focus, row, col);
-                lbl.setHorizontalAlignment(CENTER);
-                if ("Nhom".equals(val)) {
-                    lbl.setForeground(COLOR_GROUP);
-                    lbl.setFont(FONT_BOLD);
-                } else {
-                    lbl.setForeground(COLOR_PERSONAL);
                     lbl.setFont(FONT_LABEL);
                 }
                 return lbl;
@@ -313,7 +295,6 @@ public class CalendarUI extends JFrame {
         return new Object[]{
             0, // so thu tu, cap nhat sau
             userId,
-            a.isGroup() ? "Nhom" : "Ca nhan",
             a.getName(),
             a.getLocation() != null && !a.getLocation().isEmpty() ? a.getLocation() : "-",
             a.formatStart(),
@@ -369,12 +350,12 @@ public class CalendarUI extends JFrame {
             return;
         }
 
-        String name = (String) tableModel.getValueAt(row, 3);
+        String name = (String) tableModel.getValueAt(row, 2);
         int confirm = JOptionPane.showConfirmDialog(this,
             "Xoa cuoc hen: \"" + name + "\"?",
             "Xac nhan xoa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm == JOptionPane.YES_OPTION) {
-            String startStr = (String) tableModel.getValueAt(row, 5);
+            String startStr = (String) tableModel.getValueAt(row, 4);
             calendar.getAppointments().stream()
                 .filter(a -> a.getName().equals(name) && a.formatStart().equals(startStr))
                 .findFirst()

@@ -75,7 +75,7 @@ public class DataParser {
     
     /**
      * Parses a GroupMeeting from a text line.
-     * Format: id|name|duration|location|participant1,participant2,participant3
+     * Format: id|name|duration|location|startTime|endTime|participant1,participant2,participant3
      * 
      * @param line the text line to parse
      * @return parsed GroupMeeting object
@@ -86,14 +86,16 @@ public class DataParser {
             throw new ParseException("Line is null or empty");
         }
         
-        String[] fields = splitLine(line, 5);
+        String[] fields = splitLine(line, 7);
         
         try {
             String id = unescapeString(fields[0]);
             String name = unescapeString(fields[1]);
             int duration = Integer.parseInt(fields[2]);
             String location = unescapeString(fields[3]);
-            List<String> participants = parseParticipantsList(fields[4]);
+            LocalDateTime startTime = parseDateTime(fields[4]);
+            LocalDateTime endTime = parseDateTime(fields[5]);
+            List<String> participants = parseParticipantsList(fields[6]);
             
             // Validate required fields
             if (id.isEmpty()) {
@@ -103,10 +105,12 @@ public class DataParser {
                 throw new ParseException("GroupMeeting name cannot be empty");
             }
             
-            return new GroupMeeting(id, name, duration, location, participants);
+            return new GroupMeeting(id, name, duration, location, startTime, endTime, participants);
             
         } catch (NumberFormatException e) {
             throw new ParseException("Invalid number format in group meeting: " + e.getMessage());
+        } catch (DateTimeParseException e) {
+            throw new ParseException("Invalid datetime format in group meeting: " + e.getMessage());
         }
     }
     

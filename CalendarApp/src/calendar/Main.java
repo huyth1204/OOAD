@@ -66,8 +66,12 @@ public class Main {
 
     private static void seedSampleData(Calendar calendar) {
         calendar.setGroupMeetings(List.of(
-            new GroupMeeting("gm001", "Hop nhom PTTKHTDT",         90,  "Phong B102",   List.of("u002", "u003")),
-            new GroupMeeting("gm002", "Seminar Ky thuat phan mem", 120, "Hoi truong A", List.of("u004"))
+            new GroupMeeting("gm001", "Hop nhom PTTKHTDT", 90, "Phong B102",
+                LocalDateTime.of(2026,5,12,14,0), LocalDateTime.of(2026,5,12,15,30),
+                List.of("u002", "u003")),
+            new GroupMeeting("gm002", "Seminar Ky thuat phan mem", 120, "Hoi truong A",
+                LocalDateTime.of(2026,5,15,9,0), LocalDateTime.of(2026,5,15,11,0),
+                List.of("u004"))
         ));
         calendar.setAppointments(List.of(
             new Appointment("appt-s1", "Bao cao tien do mon PTTKHTDT", "Phong C305",

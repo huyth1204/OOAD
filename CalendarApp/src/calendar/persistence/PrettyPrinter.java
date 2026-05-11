@@ -50,7 +50,7 @@ public class PrettyPrinter {
     
     /**
      * Formats a GroupMeeting object into a text line.
-     * Format: id|name|duration|location|participant1,participant2,participant3
+     * Format: id|name|duration|location|startTime|endTime|participant1,participant2,participant3
      * 
      * @param meeting the GroupMeeting to format
      * @return formatted text line
@@ -60,9 +60,11 @@ public class PrettyPrinter {
         String name = escapeString(meeting.getName());
         String duration = String.valueOf(meeting.getDuration());
         String location = escapeString(meeting.getLocation() != null ? meeting.getLocation() : "");
+        String startTime = formatDateTime(meeting.getStartTime());
+        String endTime = formatDateTime(meeting.getEndTime());
         String participants = formatParticipantsList(meeting.getParticipants());
         
-        return String.join("|", id, name, duration, location, participants);
+        return String.join("|", id, name, duration, location, startTime, endTime, participants);
     }
     
     /**

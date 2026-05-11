@@ -39,7 +39,17 @@ public class Calendar {
     // Validation giờ thuộc về UI layer (AddAppointmentDialog)
     // Calendar chỉ nhận Appointment đã hợp lệ qua recordAppointment()
 
-    // ── MSG 6: checkTimeConflict ──────────────────────────────────
+    // ── MSG 6: submitAppointment ──────────────────────────────────
+    // Method tổng hợp để xử lý appointment submission
+    // Trả về null nếu thành công, hoặc message string nếu có vấn đề
+    public String submitAppointment(Appointment appt, String userId) {
+        // Bước này chỉ là entry point, logic thực tế ở các method riêng
+        // UI sẽ gọi checkTimeConflict, checkGroupMeetingMatch riêng
+        // Method này để tuân thủ diagram, nhưng không dùng trong flow hiện tại
+        return null;
+    }
+
+    // ── MSG 7: checkTimeConflict ──────────────────────────────────
     // Trả về DANH SÁCH tất cả cuộc hẹn bị trùng giờ (không phải chỉ 1)
     public List<Appointment> checkTimeConflict(LocalDateTime start, LocalDateTime end) {
         List<Appointment> conflicts = new ArrayList<>();
@@ -68,10 +78,15 @@ public class Calendar {
     }
 
     // ── MSG 8: checkGroupMeetingMatch ─────────────────────────────
-    public GroupMeeting checkGroupMeetingMatch(String name, int duration) {
+    // Kiểm tra xem appointment có khớp với group meeting nào không
+    // Match điều kiện: tên giống nhau + duration gần giống + thời gian trùng khớp
+    public GroupMeeting checkGroupMeetingMatch(String name, int duration, LocalDateTime start, LocalDateTime end) {
         for (GroupMeeting gm : groupMeetings) {
-            if (gm.getName().equalsIgnoreCase(name) &&
-                Math.abs(gm.getDuration() - duration) <= 5) {
+            boolean nameMatch = gm.getName().equalsIgnoreCase(name);
+            boolean durationMatch = Math.abs(gm.getDuration() - duration) <= 5;
+            boolean timeMatch = gm.getStartTime().equals(start) && gm.getEndTime().equals(end);
+            
+            if (nameMatch && durationMatch && timeMatch) {
                 return gm;
             }
         }
