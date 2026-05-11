@@ -1,5 +1,114 @@
-# CalendarApp data - appointments.txt
-appt-s1|Bao cao tien do mon PTTKHTDT|Phong C305|2026-05-10T09:00:00|2026-05-10T10:30:00|90|15|false
-appt-s2|Hop nhom PTTKHTDT|Phong B102|2026-05-12T14:00:00|2026-05-12T15:30:00|90||true
-appt-1777799389641|Test|A101|2026-05-03T16:09:00|2026-05-03T17:09:00|60|5|false
-appt-1777800478772|Sinh hoạt lớp 24T_DT4|A101|2025-05-03T18:00:00|2025-05-03T19:00:00|60||true
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>3. Đánh đổi & Tiêu chí ứng dụng - Caching</title>
+    <style>
+        :root {
+            --primary: #38bdf8;
+            --redis: #ef4444;
+            --mem: #10b981;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); padding: 40px; line-height: 1.6; }
+        .container { max-width: 900px; margin: auto; background: var(--card); border: 1px solid #334155; border-radius: 20px; padding: 50px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        
+        .header { text-align: center; border-bottom: 2px solid var(--primary); padding-bottom: 30px; margin-bottom: 40px; }
+        h1 { font-size: 32px; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
+        .quote { font-style: italic; color: var(--primary); margin-top: 15px; font-size: 18px; }
+
+        h2 { color: var(--primary); border-left: 5px solid var(--primary); padding-left: 15px; margin-top: 40px; font-size: 24px; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 20px; }
+        .box { background: #0f172a; padding: 25px; border-radius: 15px; border: 1px solid #334155; }
+        .box h3 { margin-top: 0; font-size: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 25px; background: #0f172a; border-radius: 10px; overflow: hidden; }
+        th { background: #334155; color: var(--primary); padding: 15px; text-align: left; border: 1px solid #1e293b; }
+        td { padding: 15px; border: 1px solid #1e293b; }
+        
+        .flow-container { background: #000; padding: 30px; border-radius: 15px; text-align: center; margin-top: 30px; border: 2px dashed var(--primary); }
+        .flow-text { font-size: 26px; font-weight: bold; color: var(--primary); }
+        .footer { text-align: center; margin-top: 50px; font-size: 14px; color: #94a3b8; border-top: 1px solid #334155; padding-top: 20px; }
+        
+        .adv { color: #4ade80; font-weight: bold; }
+        .dis { color: #f87171; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>3. Đánh đổi & Tiêu chí ứng dụng</h1>
+            <div class="quote">"Lựa chọn phù hợp nhất là chìa khóa của hiệu năng hệ thống."</div>
+        </div>
+
+        <h2>3.1 Ưu điểm & Nhược điểm (Trade-offs)</h2>
+        <div class="grid">
+            <div class="box" style="border-top: 5px solid var(--redis);">
+                <h3 style="color: var(--redis);">Redis Cache</h3>
+                <ul>
+                    <li><span class="adv">Ưu điểm:</span> Chia sẻ dữ liệu, phù hợp hệ thống scale server/K8s.</li>
+                    <li><span class="adv">Đa dạng:</span> Hỗ trợ String, Hash, Sorted Set....</li>
+                    <li><span class="adv">Bền vững:</span> Có persistence, không mất data khi restart.</li>
+                    <li><span class="dis">Hạn chế:</span> Trễ mạng (Latency) và tốn tài nguyên Serialize[cite: 1, 2].</li>
+                </ul>
+            </div>
+            <div class="box" style="border-top: 5px solid var(--mem);">
+                <h3 style="color: var(--mem);">In-Memory Cache</h3>
+                <ul>
+                    <li><span class="adv">Ưu điểm:</span> Tốc độ tức thì (Latency < 0.1ms), không qua mạng[cite: 1, 2].</li>
+                    <li><span class="adv">Đơn giản:</span> Không tốn chi phí hạ tầng, triển khai nhanh[cite: 1, 2].</li>
+                    <li><span class="dis">Hạn chế:</span> Dữ liệu không đồng bộ, mất hoàn toàn khi restart[cite: 1, 2].</li>
+                    <li><span class="dis">Rủi ro:</span> Chiếm dụng RAM, gây áp lực lên GC[cite: 1, 2].</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>3.2 Khi nào nên áp dụng?</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Bài toán thực tế</th>
+                    <th>Giải pháp đề xuất</th>
+                    <th>Lý do chính[cite: 1, 2]</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Hệ thống chạy K8s / Nhiều Instance</td>
+                    <td style="color: var(--redis); font-weight: bold;">Redis Cache</td>
+                    <td>Đảm bảo mọi server dùng chung 1 kho dữ liệu.</td>
+                </tr>
+                <tr>
+                    <td>Yêu cầu Latency cực thấp < 0.5ms</td>
+                    <td style="color: var(--mem); font-weight: bold;">In-Memory</td>
+                    <td>Bỏ qua thời gian truyền tải qua network.</td>
+                </tr>
+                <tr>
+                    <td>Session, Auth Token, Rate Limit</td>
+                    <td style="color: var(--redis); font-weight: bold;">Redis Cache</td>
+                    <td>Cần tính nhất quán tuyệt đối giữa các node.</td>
+                </tr>
+                <tr>
+                    <td>Cache kết quả logic phức tạp nội bộ</td>
+                    <td style="color: var(--mem); font-weight: bold;">In-Memory</td>
+                    <td>Lưu object trực tiếp, không tốn công serialize.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Mô hình tối ưu: Two-Level Cache</h2>
+        <div class="flow-container">
+            <div class="flow-text">L1 (In-Memory) &rarr; L2 (Redis) &rarr; L3 (Database)</div>
+            <p style="margin-top: 15px; color: #94a3b8;">Sự kết hợp hoàn hảo giữa tốc độ cục bộ và tính nhất quán toàn cục[cite: 1, 2].</p>
+        </div>
+
+        <div class="footer">
+            Tài liệu ôn tập chuyên sâu về Hệ thống Caching[cite: 1, 2]<br>
+            © 2026 - Slide Deck Edition
+        </div>
+    </div>
+</body>
+</html>

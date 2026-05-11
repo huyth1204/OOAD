@@ -19,7 +19,6 @@ public class AddAppointmentDialog extends JDialog {
 
     private JTextField txtName, txtLocation, txtStart, txtEnd;
     private JComboBox<String> cmbReminder;
-    private JComboBox<String> cmbType;
     private JLabel lblStatus;
     private JButton btnSubmit;
 
@@ -110,15 +109,9 @@ public class AddAppointmentDialog extends JDialog {
         cmbReminder.setPreferredSize(new Dimension(220, 32));
         addFormRow(p, gc, 3, "Nhac nho", cmbReminder);
 
-        String[] typeOpts = {"Ca nhan", "Nhom"};
-        cmbType = new JComboBox<>(typeOpts);
-        cmbType.setFont(FONT_FLD);
-        cmbType.setPreferredSize(new Dimension(220, 32));
-        addFormRow(p, gc, 4, "Loai cuoc hen", cmbType);
-
         lblStatus = new JLabel(" ");
         lblStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        gc.gridx = 0; gc.gridy = 5; gc.gridwidth = 2;
+        gc.gridx = 0; gc.gridy = 4; gc.gridwidth = 2;
         gc.insets = new Insets(8, 0, 0, 0);
         p.add(lblStatus, gc);
         return p;
@@ -219,18 +212,21 @@ public class AddAppointmentDialog extends JDialog {
         }
 
         Integer reminder = parseReminder();
-        boolean isGroup = (cmbType.getSelectedIndex() == 1);
+        // Loai cuoc hen (nhom/ca nhan) se duoc tu dong xac dinh
+        // dua tren logic nghiep vu (checkGroupMeetingMatch)
+        boolean isGroup = false; // Mac dinh la ca nhan
+
+        // ── VALIDATION THUỘC VỀ UI LAYER ────────────────────────────
+        // Theo mô tả: "The UI will prevent the user from entering..."
+        // Không cần gọi calendar.validateAndSubmit() nữa vì đã validate ở trên:
+        // - name.isBlank() đã check
+        // - duration <= 0 đã check
+        // UI chỉ tạo Appointment khi dữ liệu đã hợp lệ
 
         Appointment appt = new Appointment(
             "appt-" + System.currentTimeMillis(),
             name, location, start, end, duration, reminder, isGroup
         );
-
-        if (!calendar.validateAndSubmit(appt)) {
-            setStatus("[Loi] Du lieu khong hop le!", COLOR_ERROR);
-            btnSubmit.setEnabled(true);
-            return;
-        }
 
         // ── 1. TRUNG GIO (chi trong lich cua chinh user nay) ─────
         List<Appointment> timeConflicts = calendar.checkTimeConflict(start, end);

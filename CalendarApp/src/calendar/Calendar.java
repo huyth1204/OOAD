@@ -35,12 +35,9 @@ public class Calendar {
         this.reminderList = new ArrayList<>(list);
     }
 
-    // ── MSG 5: validateAndSubmit ──────────────────────────────────
-    public boolean validateAndSubmit(Appointment appt) {
-        return appt.getName() != null
-            && !appt.getName().isBlank()
-            && appt.getDuration() > 0;
-    }
+    // ── MSG 5: validateAndSubmit đã bị XÓA ───────────────────────
+    // Validation giờ thuộc về UI layer (AddAppointmentDialog)
+    // Calendar chỉ nhận Appointment đã hợp lệ qua recordAppointment()
 
     // ── MSG 6: checkTimeConflict ──────────────────────────────────
     // Trả về DANH SÁCH tất cả cuộc hẹn bị trùng giờ (không phải chỉ 1)
